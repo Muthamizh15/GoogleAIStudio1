@@ -1,0 +1,5 @@
+{
+  "name": "Bills & Subscription Tracker AI",
+  "description": "A smart subscription tracker powered by Gemini to help you manage recurring payments, visualize spending, and categorize services automatically.",
+  "requestFramePermissions": []
+}
