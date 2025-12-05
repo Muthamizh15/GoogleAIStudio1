@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Sparkles, Loader2, Check } from 'lucide-react';
 import { parseSubscriptionInput } from '../services/geminiService';
-import { Subscription, CATEGORIES, BillingCycle } from '../types';
+import { Subscription, CATEGORIES, BillingCycle, CURRENCIES } from '../types';
 
 interface SmartAddModalProps {
   isOpen: boolean;
@@ -172,12 +172,13 @@ const SmartAddModal: React.FC<SmartAddModalProps> = ({ isOpen, onClose, onAdd })
                 </div>
                 <div className="space-y-1 col-span-1">
                    <label className="text-xs font-medium text-slate-400">Currency</label>
-                   <input
-                    type="text"
+                   <select
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none uppercase"
                     value={formData.currency}
                     onChange={e => setFormData({...formData, currency: e.target.value})}
-                  />
+                  >
+                    {CURRENCIES.map(curr => <option key={curr} value={curr}>{curr}</option>)}
+                  </select>
                 </div>
                 <div className="space-y-1 col-span-1">
                   <label className="text-xs font-medium text-slate-400">Cycle</label>

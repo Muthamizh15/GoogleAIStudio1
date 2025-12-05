@@ -15,7 +15,8 @@ import Analytics from './components/Analytics';
 import { Subscription } from './types';
 import { getSpendingAdvice } from './services/geminiService';
 
-const STORAGE_KEY = 'subtrack_data_v1';
+// Changed version to force refresh of local storage data to INR
+const STORAGE_KEY = 'subtrack_data_v2';
 
 // Initial dummy data if storage is empty
 const INITIAL_DATA: Subscription[] = [
