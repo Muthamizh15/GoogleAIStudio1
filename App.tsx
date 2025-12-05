@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Plus, 
   LayoutDashboard, 
@@ -8,7 +8,12 @@ import {
   Sparkles,
   Search,
   Wallet,
-  CalendarCheck
+  CalendarCheck,
+  Settings,
+  Download,
+  Upload,
+  RefreshCw,
+  AlertTriangle
 } from 'lucide-react';
 import SmartAddModal from './components/SmartAddModal';
 import SubscriptionList from './components/SubscriptionList';
@@ -70,17 +75,17 @@ const generateId = () => {
 };
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'analytics'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'analytics' | 'settings'>('dashboard');
   
   // Robust state initialization with data sanitization
   const [subscriptions, setSubscriptions] = useState<Subscription[]>(() => {
     if (typeof window === 'undefined') return INITIAL_DATA;
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      const parsed = saved ? JSON.parse(saved) : INITIAL_DATA;
+      const parsed = saved ? JSON.parse(saved) : null;
       
       // Critical: Ensure every item has an ID. Old data might miss it.
-      if (Array.isArray(parsed)) {
+      if (Array.isArray(parsed) && parsed.length > 0) {
         return parsed.map(item => ({
             ...item,
             id: item.id || generateId()
@@ -99,6 +104,8 @@ function App() {
   const [advice, setAdvice] = useState<string | null>(null);
   const [adviceLoading, setAdviceLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Persist to local storage whenever subscriptions change
   useEffect(() => {
@@ -127,7 +134,6 @@ function App() {
         console.error("Attempted to delete item with no ID");
         return;
     }
-    // Direct delete without confirmation to avoid browser blocking issues
     console.log("Deleting subscription:", id);
     setSubscriptions(prev => prev.filter(s => s.id !== id));
   };
@@ -150,7 +156,69 @@ function App() {
     setAdviceLoading(false);
   };
 
-  // Derived Stats
+  // --- Data Management ---
+
+  const handleExportData = () => {
+    const dataStr = JSON.stringify(subscriptions, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `billportal_backup_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportTrigger = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const parsed = JSON.parse(content);
+        
+        if (Array.isArray(parsed)) {
+            // Basic validation
+            const valid = parsed.every(p => p.name && p.price !== undefined);
+            if (valid) {
+                // Ensure IDs
+                const sanitized = parsed.map(item => ({...item, id: item.id || generateId() }));
+                setSubscriptions(sanitized);
+                alert("Data restored successfully!");
+                setActiveTab('dashboard');
+            } else {
+                alert("Invalid file format. Please use a valid backup file.");
+            }
+        } else {
+             alert("Invalid file structure.");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Failed to parse file.");
+      }
+    };
+    reader.readAsText(file);
+    // Reset input
+    if (event.target) event.target.value = '';
+  };
+
+  const handleResetData = () => {
+      if (confirm("Are you sure? This will delete all local data and reset to defaults.")) {
+          setSubscriptions(INITIAL_DATA);
+          localStorage.removeItem(STORAGE_KEY);
+          alert("App reset to default state.");
+      }
+  };
+
+  // --- Derived Stats ---
   const totalMonthlySpend = subscriptions.reduce((acc, sub) => {
     if (!sub.active) return acc;
     
@@ -186,7 +254,7 @@ function App() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex font-inter">
+    <div className="min-h-screen bg-slate-900 text-slate-100 flex font-inter flex-col md:flex-row">
       
       {/* Sidebar - Desktop */}
       <aside className="w-64 bg-slate-950 border-r border-slate-800 hidden md:flex flex-col fixed h-full z-10">
@@ -213,6 +281,13 @@ function App() {
             <ChartIcon className="w-5 h-5" />
             Analytics
           </button>
+          <button 
+            onClick={() => setActiveTab('settings')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'settings' ? 'bg-indigo-600/10 text-indigo-400 font-semibold' : 'text-slate-400 hover:bg-slate-900 hover:text-white'}`}
+          >
+            <Settings className="w-5 h-5" />
+            Data & Sync
+          </button>
         </nav>
 
         <div className="p-4 border-t border-slate-800/50">
@@ -224,12 +299,13 @@ function App() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 md:ml-64 min-w-0">
+      <main className="flex-1 md:ml-64 min-w-0 pb-20 md:pb-0">
         
         {/* Top Header */}
-        <header className="h-20 border-b border-slate-800/50 bg-slate-900/80 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between px-6 lg:px-10">
-          <div className="flex items-center gap-4 md:hidden">
-             <span className="font-bold text-lg text-indigo-400">BillPortal</span>
+        <header className="h-16 md:h-20 border-b border-slate-800/50 bg-slate-900/80 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between px-4 lg:px-10">
+          <div className="flex items-center gap-2 md:hidden">
+             <Wallet className="w-5 h-5 text-indigo-500" />
+             <span className="font-bold text-lg text-white">BillPortal</span>
           </div>
 
           <div className="hidden md:block w-full max-w-md relative">
@@ -243,10 +319,15 @@ function App() {
              />
           </div>
 
-          <div className="flex items-center gap-4 ml-auto">
+          <div className="flex items-center gap-3 ml-auto">
+            {/* Mobile Search Icon Trigger (Simplified for now) */}
+            <div className="md:hidden">
+                {/* Could add a search toggle here */}
+            </div>
+            
             <button 
                 onClick={() => setIsModalOpen(true)}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-full font-medium shadow-lg shadow-indigo-500/20 flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
+                className="bg-indigo-600 hover:bg-indigo-500 text-white p-2 md:px-5 md:py-2.5 rounded-full font-medium shadow-lg shadow-indigo-500/20 flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
             >
                 <Plus className="w-5 h-5" />
                 <span className="hidden sm:inline">Add Entry</span>
@@ -254,14 +335,14 @@ function App() {
           </div>
         </header>
 
-        <div className="p-6 lg:p-10 max-w-7xl mx-auto space-y-8">
+        <div className="p-4 lg:p-10 max-w-7xl mx-auto space-y-8 min-h-[calc(100vh-5rem)]">
             
             {/* Tab: Dashboard */}
             {activeTab === 'dashboard' && (
-                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6 md:space-y-8">
                     
                     {/* Stats Row */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
                         <div className="bg-gradient-to-br from-slate-800 to-slate-800/50 border border-slate-700 p-6 rounded-2xl relative overflow-hidden group">
                              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                                 <Wallet className="w-24 h-24 text-indigo-400" />
@@ -335,6 +416,20 @@ function App() {
                             <h2 className="text-xl font-bold text-white">Your Bills & Subscriptions</h2>
                             <div className="text-sm text-slate-400">{filteredSubs.length} entries</div>
                         </div>
+                        {/* Mobile Search (Duplicate for better UX if needed, or kept in header) */}
+                        <div className="mb-4 md:hidden">
+                             <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                                <input 
+                                    type="text" 
+                                    placeholder="Search..." 
+                                    className="w-full bg-slate-800 border-none rounded-xl py-3 pl-10 pr-4 text-sm text-slate-200 focus:ring-2 focus:ring-indigo-500/50 outline-none"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                             </div>
+                        </div>
+                        
                         <SubscriptionList 
                             subscriptions={filteredSubs} 
                             onDelete={handleDeleteSubscription}
@@ -352,8 +447,106 @@ function App() {
                 </div>
             )}
 
+            {/* Tab: Settings */}
+            {activeTab === 'settings' && (
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
+                     <h2 className="text-2xl font-bold text-white mb-2">Data & Synchronization</h2>
+                     <p className="text-slate-400 max-w-2xl">
+                        Your data is stored locally on this device. To move your data to another device (e.g. from laptop to phone), 
+                        download a backup here and upload it on the other device.
+                     </p>
+
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+                        {/* Export */}
+                        <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 flex flex-col items-center text-center space-y-4 hover:border-indigo-500/50 transition-colors">
+                            <div className="w-16 h-16 bg-indigo-500/10 rounded-full flex items-center justify-center text-indigo-400">
+                                <Download className="w-8 h-8" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-semibold text-white">Backup Data</h3>
+                                <p className="text-sm text-slate-500 mt-1">Download your data as a JSON file.</p>
+                            </div>
+                            <button 
+                                onClick={handleExportData}
+                                className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium transition-colors"
+                            >
+                                Download Backup
+                            </button>
+                        </div>
+
+                        {/* Import */}
+                        <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 flex flex-col items-center text-center space-y-4 hover:border-emerald-500/50 transition-colors">
+                            <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center text-emerald-400">
+                                <Upload className="w-8 h-8" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-semibold text-white">Restore Data</h3>
+                                <p className="text-sm text-slate-500 mt-1">Upload a backup file to restore entries.</p>
+                            </div>
+                            <button 
+                                onClick={handleImportTrigger}
+                                className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors"
+                            >
+                                Upload Backup
+                            </button>
+                            <input 
+                                type="file" 
+                                ref={fileInputRef} 
+                                onChange={handleImportFile} 
+                                accept=".json" 
+                                className="hidden" 
+                            />
+                        </div>
+
+                        {/* Reset */}
+                        <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 flex flex-col items-center text-center space-y-4 hover:border-red-500/50 transition-colors">
+                            <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center text-red-400">
+                                <AlertTriangle className="w-8 h-8" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-semibold text-white">Reset App</h3>
+                                <p className="text-sm text-slate-500 mt-1">Clear all data and start fresh.</p>
+                            </div>
+                            <button 
+                                onClick={handleResetData}
+                                className="w-full py-2 bg-red-600/20 hover:bg-red-600 hover:text-white text-red-400 border border-red-600/30 rounded-lg font-medium transition-all"
+                            >
+                                Clear Data
+                            </button>
+                        </div>
+                     </div>
+                </div>
+            )}
+
         </div>
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 z-30 md:hidden pb-safe">
+        <div className="flex justify-around items-center h-16">
+            <button 
+                onClick={() => setActiveTab('dashboard')}
+                className={`flex flex-col items-center gap-1 p-2 ${activeTab === 'dashboard' ? 'text-indigo-400' : 'text-slate-500'}`}
+            >
+                <LayoutDashboard className="w-6 h-6" />
+                <span className="text-[10px] font-medium">Dashboard</span>
+            </button>
+            <button 
+                onClick={() => setActiveTab('analytics')}
+                className={`flex flex-col items-center gap-1 p-2 ${activeTab === 'analytics' ? 'text-indigo-400' : 'text-slate-500'}`}
+            >
+                <ChartIcon className="w-6 h-6" />
+                <span className="text-[10px] font-medium">Analytics</span>
+            </button>
+            <button 
+                onClick={() => setActiveTab('settings')}
+                className={`flex flex-col items-center gap-1 p-2 ${activeTab === 'settings' ? 'text-indigo-400' : 'text-slate-500'}`}
+            >
+                <Settings className="w-6 h-6" />
+                <span className="text-[10px] font-medium">Settings</span>
+            </button>
+        </div>
+      </nav>
 
       <SmartAddModal 
         isOpen={isModalOpen} 
