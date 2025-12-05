@@ -35,7 +35,11 @@ const SmartAddModal: React.FC<SmartAddModalProps> = ({ isOpen, onClose, onAdd })
 
     try {
       const parsed = await parseSubscriptionInput(smartInput);
-      setFormData((prev) => ({ ...prev, ...parsed }));
+      setFormData((prev) => ({ 
+        ...prev, 
+        ...parsed,
+        currency: parsed.currency || prev.currency || 'INR' // Ensure currency is preserved
+      }));
       setMode('manual'); // Switch to manual for review
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to parse.");
@@ -46,7 +50,7 @@ const SmartAddModal: React.FC<SmartAddModalProps> = ({ isOpen, onClose, onAdd })
 
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.price) {
+    if (!formData.name || formData.price === undefined || formData.price === null) {
       setError("Name and Price are required.");
       return;
     }
@@ -166,8 +170,8 @@ const SmartAddModal: React.FC<SmartAddModalProps> = ({ isOpen, onClose, onAdd })
                     step="0.01"
                     required
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
-                    value={formData.price}
-                    onChange={e => setFormData({...formData, price: parseFloat(e.target.value)})}
+                    value={formData.price || ''}
+                    onChange={e => setFormData({...formData, price: e.target.valueAsNumber})}
                   />
                 </div>
                 <div className="space-y-1 col-span-1">

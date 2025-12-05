@@ -15,10 +15,10 @@ import Analytics from './components/Analytics';
 import { Subscription } from './types';
 import { getSpendingAdvice } from './services/geminiService';
 
-// Changed version to force refresh of local storage data to INR
-const STORAGE_KEY = 'subtrack_data_v2';
+// Changed key to v3 to force reload of INR defaults for existing users
+const STORAGE_KEY = 'subtrack_data_v3';
 
-// Initial dummy data if storage is empty
+// Initial dummy data with INR values
 const INITIAL_DATA: Subscription[] = [
   { id: '1', name: 'Netflix', price: 649, currency: 'INR', billingCycle: 'monthly', category: 'Entertainment', startDate: '2023-01-15', active: true, paymentMethod: 'Visa •••• 4242' },
   { id: '2', name: 'Spotify', price: 119, currency: 'INR', billingCycle: 'monthly', category: 'Entertainment', startDate: '2023-03-10', active: true, paymentMethod: 'Mastercard •••• 8888' },
@@ -26,25 +26,46 @@ const INITIAL_DATA: Subscription[] = [
   { id: '4', name: 'Amazon Prime', price: 1499, currency: 'INR', billingCycle: 'yearly', category: 'Utilities', startDate: '2023-08-20', active: true, paymentMethod: 'Visa •••• 4242' },
 ];
 
+const generateId = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+};
+
 function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'analytics'>('dashboard');
+  
+  // Robust state initialization
   const [subscriptions, setSubscriptions] = useState<Subscription[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : INITIAL_DATA;
+    if (typeof window === 'undefined') return INITIAL_DATA;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved) : INITIAL_DATA;
+    } catch (error) {
+      console.error('Failed to load subscriptions:', error);
+      return INITIAL_DATA;
+    }
   });
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [advice, setAdvice] = useState<string | null>(null);
   const [adviceLoading, setAdviceLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Persist to local storage whenever subscriptions change
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(subscriptions));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(subscriptions));
+    } catch (error) {
+      console.error('Failed to save subscriptions:', error);
+    }
   }, [subscriptions]);
 
   const handleAddSubscription = (subData: Omit<Subscription, 'id'>) => {
     const newSub: Subscription = {
       ...subData,
-      id: crypto.randomUUID(),
+      id: generateId(),
     };
     setSubscriptions(prev => [newSub, ...prev]);
   };
@@ -111,15 +132,12 @@ function App() {
         </div>
       </aside>
 
-      {/* Mobile Nav Overlay (simplified for this demo) */}
-      
       {/* Main Content */}
       <main className="flex-1 md:ml-64 min-w-0">
         
         {/* Top Header */}
         <header className="h-20 border-b border-slate-800/50 bg-slate-900/80 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between px-6 lg:px-10">
           <div className="flex items-center gap-4 md:hidden">
-             {/* Mobile Menu Trigger could go here */}
              <span className="font-bold text-lg text-indigo-400">SubTrack</span>
           </div>
 
