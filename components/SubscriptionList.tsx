@@ -1,29 +1,28 @@
+
 import React from 'react';
-import { Trash2, ExternalLink, Calendar, CreditCard } from 'lucide-react';
+import { Trash2, Edit2, Calendar, CreditCard, StickyNote, Wallet } from 'lucide-react';
 import { Subscription } from '../types';
 
 interface SubscriptionListProps {
   subscriptions: Subscription[];
   onDelete: (id: string) => void;
+  onEdit: (sub: Subscription) => void;
 }
 
-const SubscriptionList: React.FC<SubscriptionListProps> = ({ subscriptions, onDelete }) => {
+const SubscriptionList: React.FC<SubscriptionListProps> = ({ subscriptions, onDelete, onEdit }) => {
   
   const getNextDueDate = (sub: Subscription): string => {
     const start = new Date(sub.startDate);
     const today = new Date();
-    // Normalize time to midnight to avoid time-of-day bugs
     today.setHours(0, 0, 0, 0);
     
     let next = new Date(start);
     next.setHours(0, 0, 0, 0);
 
-    // If start date is in the future, that is the next date
     if (next > today) {
         return next.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     }
 
-    // Otherwise, increment until we pass today
     while (next < today) {
         switch (sub.billingCycle) {
             case 'monthly':
@@ -101,8 +100,8 @@ const SubscriptionList: React.FC<SubscriptionListProps> = ({ subscriptions, onDe
   if (subscriptions.length === 0) {
     return (
         <div className="text-center py-20 bg-slate-800/50 rounded-2xl border border-slate-700/50 border-dashed">
-            <h3 className="text-slate-400 text-lg font-medium">No subscriptions yet</h3>
-            <p className="text-slate-500 text-sm mt-2">Use the "Add Subscription" button to get started.</p>
+            <h3 className="text-slate-400 text-lg font-medium">No active entries</h3>
+            <p className="text-slate-500 text-sm mt-2">Add your bills, subscriptions, or insurance to get started.</p>
         </div>
     );
   }
@@ -133,39 +132,59 @@ const SubscriptionList: React.FC<SubscriptionListProps> = ({ subscriptions, onDe
                     </div>
                 </div>
 
-                <div className="space-y-3 mt-6">
+                <div className="space-y-3 mt-4 pt-4 border-t border-slate-700/50">
                     <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2 text-slate-400">
                             <Calendar className="w-4 h-4" />
-                            <span>Next Payment</span>
+                            <span>Due Date</span>
                         </div>
                         <span className={`${dueSoon ? 'text-amber-400 font-bold' : 'text-slate-200'}`}>
                             {getNextDueDate(sub)}
                         </span>
                     </div>
 
-                    {sub.paymentMethod && (
-                        <div className="flex items-center justify-between text-sm">
-                            <div className="flex items-center gap-2 text-slate-400">
+                    {(sub.paymentType || sub.paymentDetails) && (
+                        <div className="flex items-start justify-between text-sm">
+                            <div className="flex items-center gap-2 text-slate-400 mt-0.5">
                                 <CreditCard className="w-4 h-4" />
-                                <span>Method</span>
+                                <span>Payment</span>
                             </div>
-                            <span className="text-slate-300 truncate max-w-[120px]">{sub.paymentMethod}</span>
+                            <div className="text-right flex flex-col items-end">
+                                {sub.paymentType && <span className="text-slate-200">{sub.paymentType}</span>}
+                                {sub.paymentDetails && <span className="text-slate-500 text-xs truncate max-w-[150px]">{sub.paymentDetails}</span>}
+                            </div>
+                        </div>
+                    )}
+                    
+                    {sub.notes && (
+                        <div className="flex items-start justify-between text-sm">
+                            <div className="flex items-center gap-2 text-slate-400 mt-0.5">
+                                <StickyNote className="w-4 h-4" />
+                                <span>Note</span>
+                            </div>
+                             <span className="text-slate-400 italic text-xs text-right truncate max-w-[180px]" title={sub.notes}>
+                                {sub.notes}
+                            </span>
                         </div>
                     )}
                 </div>
 
                 <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                     {/* Placeholder for edit action */}
-                     {/* <button className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-white"><Edit2 className="w-4 h-4"/></button> */}
+                     <button 
+                        onClick={() => onEdit(sub)}
+                        className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-white transition-colors shadow-lg"
+                        title="Edit"
+                     >
+                         <Edit2 className="w-4 h-4"/>
+                     </button>
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-slate-700/50 flex justify-between items-center opacity-60 group-hover:opacity-100 transition-opacity">
-                    <span className="text-xs text-slate-500">Started {new Date(sub.startDate).toLocaleDateString()}</span>
+                <div className="mt-4 flex justify-between items-center opacity-60 group-hover:opacity-100 transition-opacity">
+                    <span className="text-xs text-slate-600">Started {new Date(sub.startDate).toLocaleDateString()}</span>
                     <button 
                         onClick={() => onDelete(sub.id)}
-                        className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
-                        title="Remove subscription"
+                        className="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-400/10 rounded-md transition-colors"
+                        title="Delete"
                     >
                         <Trash2 className="w-4 h-4" />
                     </button>

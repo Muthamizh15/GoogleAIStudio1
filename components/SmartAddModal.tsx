@@ -1,15 +1,18 @@
-import React, { useState } from 'react';
-import { X, Sparkles, Loader2, Check } from 'lucide-react';
+
+import React, { useState, useEffect } from 'react';
+import { X, Sparkles, Loader2, Check, Save } from 'lucide-react';
 import { parseSubscriptionInput } from '../services/geminiService';
-import { Subscription, CATEGORIES, BillingCycle, CURRENCIES } from '../types';
+import { Subscription, CATEGORIES, BillingCycle, CURRENCIES, PAYMENT_TYPES } from '../types';
 
 interface SmartAddModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAdd: (sub: Omit<Subscription, 'id'>) => void;
+  onUpdate?: (sub: Subscription) => void;
+  initialData?: Subscription | null;
 }
 
-const SmartAddModal: React.FC<SmartAddModalProps> = ({ isOpen, onClose, onAdd }) => {
+const SmartAddModal: React.FC<SmartAddModalProps> = ({ isOpen, onClose, onAdd, onUpdate, initialData }) => {
   const [mode, setMode] = useState<'smart' | 'manual'>('smart');
   const [smartInput, setSmartInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,7 +27,36 @@ const SmartAddModal: React.FC<SmartAddModalProps> = ({ isOpen, onClose, onAdd })
     category: 'Other',
     startDate: new Date().toISOString().split('T')[0],
     active: true,
+    paymentType: '',
+    paymentDetails: '',
+    notes: '',
   });
+
+  // Effect to handle Edit Mode vs Add Mode
+  useEffect(() => {
+    if (isOpen) {
+      if (initialData) {
+        setMode('manual');
+        setFormData({ ...initialData });
+      } else {
+        setMode('smart');
+        setFormData({
+            name: '',
+            price: 0,
+            currency: 'INR',
+            billingCycle: 'monthly',
+            category: 'Other',
+            startDate: new Date().toISOString().split('T')[0],
+            active: true,
+            paymentType: '',
+            paymentDetails: '',
+            notes: '',
+        });
+        setSmartInput('');
+      }
+      setError(null);
+    }
+  }, [isOpen, initialData]);
 
   const handleSmartSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,7 +70,7 @@ const SmartAddModal: React.FC<SmartAddModalProps> = ({ isOpen, onClose, onAdd })
       setFormData((prev) => ({ 
         ...prev, 
         ...parsed,
-        currency: parsed.currency || prev.currency || 'INR' // Ensure currency is preserved
+        currency: parsed.currency || prev.currency || 'INR'
       }));
       setMode('manual'); // Switch to manual for review
     } catch (err) {
@@ -48,51 +80,60 @@ const SmartAddModal: React.FC<SmartAddModalProps> = ({ isOpen, onClose, onAdd })
     }
   };
 
-  const handleManualSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || formData.price === undefined || formData.price === null || isNaN(formData.price)) {
       setError("Name and valid Price are required.");
       return;
     }
     
-    onAdd({
+    const finalData = {
       name: formData.name || 'Unknown',
       price: Number(formData.price),
       currency: formData.currency || 'INR',
       billingCycle: (formData.billingCycle as BillingCycle) || 'monthly',
       category: formData.category || 'Other',
       startDate: formData.startDate || new Date().toISOString().split('T')[0],
-      description: formData.description || '',
-      paymentMethod: formData.paymentMethod || '',
+      paymentType: formData.paymentType || '',
+      paymentDetails: formData.paymentDetails || '',
+      notes: formData.notes || '',
       active: true,
-    });
+    };
+
+    if (initialData && onUpdate) {
+        onUpdate({ ...finalData, id: initialData.id } as Subscription);
+    } else {
+        onAdd(finalData);
+    }
     
-    // Reset
-    setSmartInput('');
-    setFormData({
-      name: '',
-      price: 0,
-      currency: 'INR',
-      billingCycle: 'monthly',
-      category: 'Other',
-      startDate: new Date().toISOString().split('T')[0],
-      active: true,
-    });
-    setMode('smart');
     onClose();
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      <div className="bg-slate-800 border border-slate-700 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 max-h-[90vh] flex flex-col">
         
         {/* Header */}
-        <div className="bg-slate-900/50 p-4 flex justify-between items-center border-b border-slate-700">
+        <div className="bg-slate-900/50 p-4 flex justify-between items-center border-b border-slate-700 shrink-0">
           <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-            {mode === 'smart' ? <Sparkles className="w-5 h-5 text-indigo-400" /> : <div className="w-5 h-5 rounded-full bg-indigo-500" />}
-            {mode === 'smart' ? 'AI Quick Add' : 'Review & Save'}
+            {initialData ? (
+                <>
+                    <div className="w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center text-xs text-black font-bold">✎</div>
+                    Edit Entry
+                </>
+            ) : mode === 'smart' ? (
+                <>
+                    <Sparkles className="w-5 h-5 text-indigo-400" />
+                    AI Quick Add
+                </>
+            ) : (
+                <>
+                    <div className="w-5 h-5 rounded-full bg-indigo-500" />
+                    Review Details
+                </>
+            )}
           </h2>
           <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
             <X className="w-5 h-5" />
@@ -100,18 +141,18 @@ const SmartAddModal: React.FC<SmartAddModalProps> = ({ isOpen, onClose, onAdd })
         </div>
 
         {/* Content */}
-        <div className="p-6">
-          {mode === 'smart' ? (
+        <div className="p-6 overflow-y-auto custom-scrollbar">
+          {mode === 'smart' && !initialData ? (
             <div className="space-y-4">
               <p className="text-slate-300 text-sm">
-                Describe your subscription naturally. For example: <br />
-                <span className="text-indigo-300 italic">"Jio prepaid plan for ₹749 every 84 days started yesterday"</span>
+                Paste a bill message or describe the expense naturally. We'll extract the details.<br />
+                <span className="text-indigo-300 italic block mt-2">"Paying HDFC Life Insurance premium of ₹12,500 yearly via NetBanking, due tomorrow"</span>
               </p>
               
               <form onSubmit={handleSmartSubmit} className="space-y-4">
                 <textarea
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none h-32"
-                  placeholder="Paste receipt text or type details..."
+                  placeholder="E.g., Netflix Premium ₹649/month on Credit Card..."
                   value={smartInput}
                   onChange={(e) => setSmartInput(e.target.value)}
                 />
@@ -124,7 +165,7 @@ const SmartAddModal: React.FC<SmartAddModalProps> = ({ isOpen, onClose, onAdd })
                     onClick={() => setMode('manual')}
                     className="flex-1 px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-700 transition-colors text-sm font-medium"
                   >
-                    Skip to Manual
+                    Enter Manually
                   </button>
                   <button
                     type="submit"
@@ -132,26 +173,29 @@ const SmartAddModal: React.FC<SmartAddModalProps> = ({ isOpen, onClose, onAdd })
                     className="flex-1 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   >
                     {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                    {loading ? 'Processing...' : 'Analyze'}
+                    {loading ? 'Analyzing...' : 'Auto-Fill'}
                   </button>
                 </div>
               </form>
             </div>
           ) : (
-            <form onSubmit={handleManualSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <form onSubmit={handleSubmit} className="space-y-5">
+              
+              {/* Basic Info Section */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-slate-400">Name</label>
+                  <label className="text-xs font-medium text-slate-400 uppercase tracking-wide">Name</label>
                   <input
                     type="text"
                     required
+                    placeholder="Netflix, LIC, Rent..."
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
                     value={formData.name}
                     onChange={e => setFormData({...formData, name: e.target.value})}
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-slate-400">Category</label>
+                  <label className="text-xs font-medium text-slate-400 uppercase tracking-wide">Category</label>
                   <select
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
                     value={formData.category}
@@ -162,9 +206,10 @@ const SmartAddModal: React.FC<SmartAddModalProps> = ({ isOpen, onClose, onAdd })
                 </div>
               </div>
 
+              {/* Financials Section */}
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-1 col-span-1">
-                  <label className="text-xs font-medium text-slate-400">Price</label>
+                  <label className="text-xs font-medium text-slate-400 uppercase tracking-wide">Price</label>
                   <input
                     type="number"
                     step="0.01"
@@ -175,7 +220,7 @@ const SmartAddModal: React.FC<SmartAddModalProps> = ({ isOpen, onClose, onAdd })
                   />
                 </div>
                 <div className="space-y-1 col-span-1">
-                   <label className="text-xs font-medium text-slate-400">Currency</label>
+                   <label className="text-xs font-medium text-slate-400 uppercase tracking-wide">Currency</label>
                    <select
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none uppercase"
                     value={formData.currency}
@@ -185,7 +230,7 @@ const SmartAddModal: React.FC<SmartAddModalProps> = ({ isOpen, onClose, onAdd })
                   </select>
                 </div>
                 <div className="space-y-1 col-span-1">
-                  <label className="text-xs font-medium text-slate-400">Cycle</label>
+                  <label className="text-xs font-medium text-slate-400 uppercase tracking-wide">Cycle</label>
                   <select
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
                     value={formData.billingCycle}
@@ -200,30 +245,72 @@ const SmartAddModal: React.FC<SmartAddModalProps> = ({ isOpen, onClose, onAdd })
                 </div>
               </div>
 
-              <div className="space-y-1">
-                  <label className="text-xs font-medium text-slate-400">Start Date</label>
-                  <input
-                    type="date"
-                    required
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
-                    value={formData.startDate}
-                    onChange={e => setFormData({...formData, startDate: e.target.value})}
-                  />
+              {/* Date & Payment Section */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <div className="space-y-1">
+                    <label className="text-xs font-medium text-slate-400 uppercase tracking-wide">Start Date</label>
+                    <input
+                        type="date"
+                        required
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                        value={formData.startDate}
+                        onChange={e => setFormData({...formData, startDate: e.target.value})}
+                    />
+                 </div>
+                 <div className="space-y-1">
+                    <label className="text-xs font-medium text-slate-400 uppercase tracking-wide">Payment Type</label>
+                    <select
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                        value={formData.paymentType}
+                        onChange={e => setFormData({...formData, paymentType: e.target.value})}
+                    >
+                        <option value="">Select Type...</option>
+                        {PAYMENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                 </div>
               </div>
 
-              <div className="flex gap-3 pt-2">
-                 <button
-                    type="button"
-                    onClick={() => setMode('smart')}
-                    className="px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-700 transition-colors text-sm"
-                  >
-                    Back
-                  </button>
+              {/* Payment Details */}
+              <div className="space-y-1">
+                 <label className="text-xs font-medium text-slate-400 uppercase tracking-wide">Account / Card Details</label>
+                 <input
+                    type="text"
+                    placeholder="e.g. HDFC Regalia ending 1234"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                    value={formData.paymentDetails}
+                    onChange={e => setFormData({...formData, paymentDetails: e.target.value})}
+                 />
+              </div>
+
+              {/* Notes */}
+              <div className="space-y-1">
+                 <label className="text-xs font-medium text-slate-400 uppercase tracking-wide">Notes</label>
+                 <textarea
+                    rows={2}
+                    placeholder="Add a small note about this entry..."
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+                    value={formData.notes}
+                    onChange={e => setFormData({...formData, notes: e.target.value})}
+                 />
+              </div>
+
+              {/* Footer Actions */}
+              <div className="flex gap-3 pt-4 border-t border-slate-700/50">
+                 {!initialData && (
+                     <button
+                        type="button"
+                        onClick={() => setMode('smart')}
+                        className="px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-700 transition-colors text-sm"
+                    >
+                        Back
+                    </button>
+                 )}
                   <button
                     type="submit"
                     className="flex-1 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2"
                   >
-                    <Check className="w-4 h-4" /> Save Subscription
+                    {initialData ? <Save className="w-4 h-4" /> : <Check className="w-4 h-4" />} 
+                    {initialData ? 'Update Entry' : 'Save Entry'}
                   </button>
               </div>
             </form>
