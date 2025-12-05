@@ -169,7 +169,7 @@ const SubscriptionList: React.FC<SubscriptionListProps> = ({ subscriptions, onDe
                     )}
                 </div>
 
-                <div className="absolute top-4 right-4 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex gap-2">
+                <div className="absolute top-4 right-4 flex gap-2 z-10">
                      <button 
                         type="button"
                         onClick={(e) => {
@@ -177,14 +177,14 @@ const SubscriptionList: React.FC<SubscriptionListProps> = ({ subscriptions, onDe
                             e.stopPropagation();
                             onEdit(sub);
                         }}
-                        className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-white transition-colors shadow-lg"
+                        className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-white transition-colors shadow-lg cursor-pointer"
                         title="Edit"
                      >
                          <Edit2 className="w-4 h-4"/>
                      </button>
                 </div>
 
-                <div className="mt-4 flex justify-between items-center opacity-100 md:opacity-60 md:group-hover:opacity-100 transition-opacity">
+                <div className="mt-4 flex justify-between items-center transition-opacity z-10">
                     <span className="text-xs text-slate-600">Started {new Date(sub.startDate).toLocaleDateString()}</span>
                     <button 
                         type="button"
@@ -193,7 +193,7 @@ const SubscriptionList: React.FC<SubscriptionListProps> = ({ subscriptions, onDe
                             e.stopPropagation();
                             onDelete(sub.id);
                         }}
-                        className="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-400/10 rounded-md transition-colors"
+                        className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-md transition-colors cursor-pointer"
                         title="Delete"
                     >
                         <Trash2 className="w-4 h-4" />

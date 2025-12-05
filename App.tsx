@@ -127,9 +127,9 @@ function App() {
         console.error("Attempted to delete item with no ID");
         return;
     }
-    if(window.confirm("Are you sure you want to delete this entry?")) {
-        setSubscriptions(prev => prev.filter(s => s.id !== id));
-    }
+    // Direct delete without confirmation to avoid browser blocking issues
+    console.log("Deleting subscription:", id);
+    setSubscriptions(prev => prev.filter(s => s.id !== id));
   };
 
   const handleEditClick = (sub: Subscription) => {
