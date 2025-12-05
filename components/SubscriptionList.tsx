@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Trash2, Edit2, Calendar, CreditCard, StickyNote, Wallet } from 'lucide-react';
+import { Trash2, Edit2, Calendar, CreditCard, StickyNote } from 'lucide-react';
 import { Subscription } from '../types';
 
 interface SubscriptionListProps {
@@ -169,9 +169,14 @@ const SubscriptionList: React.FC<SubscriptionListProps> = ({ subscriptions, onDe
                     )}
                 </div>
 
-                <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                <div className="absolute top-4 right-4 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex gap-2">
                      <button 
-                        onClick={() => onEdit(sub)}
+                        type="button"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onEdit(sub);
+                        }}
                         className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-white transition-colors shadow-lg"
                         title="Edit"
                      >
@@ -179,10 +184,15 @@ const SubscriptionList: React.FC<SubscriptionListProps> = ({ subscriptions, onDe
                      </button>
                 </div>
 
-                <div className="mt-4 flex justify-between items-center opacity-60 group-hover:opacity-100 transition-opacity">
+                <div className="mt-4 flex justify-between items-center opacity-100 md:opacity-60 md:group-hover:opacity-100 transition-opacity">
                     <span className="text-xs text-slate-600">Started {new Date(sub.startDate).toLocaleDateString()}</span>
                     <button 
-                        onClick={() => onDelete(sub.id)}
+                        type="button"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onDelete(sub.id);
+                        }}
                         className="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-400/10 rounded-md transition-colors"
                         title="Delete"
                     >

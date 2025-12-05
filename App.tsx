@@ -72,12 +72,21 @@ const generateId = () => {
 function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'analytics'>('dashboard');
   
-  // Robust state initialization
+  // Robust state initialization with data sanitization
   const [subscriptions, setSubscriptions] = useState<Subscription[]>(() => {
     if (typeof window === 'undefined') return INITIAL_DATA;
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      return saved ? JSON.parse(saved) : INITIAL_DATA;
+      const parsed = saved ? JSON.parse(saved) : INITIAL_DATA;
+      
+      // Critical: Ensure every item has an ID. Old data might miss it.
+      if (Array.isArray(parsed)) {
+        return parsed.map(item => ({
+            ...item,
+            id: item.id || generateId()
+        }));
+      }
+      return INITIAL_DATA;
     } catch (error) {
       console.error('Failed to load subscriptions:', error);
       return INITIAL_DATA;
@@ -114,6 +123,10 @@ function App() {
   };
 
   const handleDeleteSubscription = (id: string) => {
+    if (!id) {
+        console.error("Attempted to delete item with no ID");
+        return;
+    }
     if(window.confirm("Are you sure you want to delete this entry?")) {
         setSubscriptions(prev => prev.filter(s => s.id !== id));
     }
