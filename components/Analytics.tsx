@@ -18,9 +18,28 @@ const Analytics: React.FC<AnalyticsProps> = ({ subscriptions }) => {
 
     subscriptions.filter(s => s.active).forEach(sub => {
       let monthlyCost = sub.price;
-      if (sub.billingCycle === 'yearly') {
-        monthlyCost = sub.price / 12;
+      
+      switch (sub.billingCycle) {
+        case 'yearly':
+          monthlyCost = sub.price / 12;
+          break;
+        case 'quarterly':
+          monthlyCost = sub.price / 3;
+          break;
+        case 'half-yearly':
+          monthlyCost = sub.price / 6;
+          break;
+        case 'every-28-days':
+          // (Price / 28) * (365/12) roughly, or Total Annual Cost / 12
+          // 365 / 28 = ~13.03 cycles per year
+          monthlyCost = (sub.price * (365 / 28)) / 12;
+          break;
+        case 'monthly':
+        default:
+          monthlyCost = sub.price;
+          break;
       }
+
       if (categoryTotals[sub.category] !== undefined) {
         categoryTotals[sub.category] += monthlyCost;
       } else {

@@ -14,6 +14,7 @@ export const parseSubscriptionInput = async (input: string): Promise<Partial<Sub
       contents: `Extract subscription details from this text: "${input}". 
       If the start date is implied (e.g. "started today"), assume today is ${new Date().toISOString().split('T')[0]}.
       If currency is not specified, infer it or default to INR.
+      If the cycle involves "28 days", use "every-28-days".
       Category should be one of: Entertainment, Software, Utilities, Health & Fitness, Education, Finance, Other.`,
       config: {
         responseMimeType: "application/json",
@@ -23,7 +24,10 @@ export const parseSubscriptionInput = async (input: string): Promise<Partial<Sub
             name: { type: Type.STRING, description: "Name of the service" },
             price: { type: Type.NUMBER, description: "Cost per cycle" },
             currency: { type: Type.STRING, description: "ISO Currency Code e.g. INR" },
-            billingCycle: { type: Type.STRING, enum: ["monthly", "yearly"] },
+            billingCycle: { 
+              type: Type.STRING, 
+              enum: ["monthly", "yearly", "quarterly", "half-yearly", "every-28-days"] 
+            },
             category: { type: Type.STRING },
             startDate: { type: Type.STRING, description: "YYYY-MM-DD format" },
             description: { type: Type.STRING, description: "Brief description if available" },

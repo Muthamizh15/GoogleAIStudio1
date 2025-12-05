@@ -85,7 +85,30 @@ function App() {
   // Derived Stats
   const totalMonthlySpend = subscriptions.reduce((acc, sub) => {
     if (!sub.active) return acc;
-    return acc + (sub.billingCycle === 'monthly' ? sub.price : sub.price / 12);
+    
+    let monthlyCost = 0;
+    switch (sub.billingCycle) {
+        case 'yearly':
+            monthlyCost = sub.price / 12;
+            break;
+        case 'quarterly':
+            monthlyCost = sub.price / 3;
+            break;
+        case 'half-yearly':
+            monthlyCost = sub.price / 6;
+            break;
+        case 'every-28-days':
+            // 365 days / 28 days = ~13.03 payments per year. 
+            // Monthly average = (Price * 13.03) / 12
+            monthlyCost = (sub.price * (365 / 28)) / 12;
+            break;
+        case 'monthly':
+        default:
+            monthlyCost = sub.price;
+            break;
+    }
+    
+    return acc + monthlyCost;
   }, 0);
 
   const activeCount = subscriptions.filter(s => s.active).length;

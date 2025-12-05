@@ -50,8 +50,8 @@ const SmartAddModal: React.FC<SmartAddModalProps> = ({ isOpen, onClose, onAdd })
 
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || formData.price === undefined || formData.price === null) {
-      setError("Name and Price are required.");
+    if (!formData.name || formData.price === undefined || formData.price === null || isNaN(formData.price)) {
+      setError("Name and valid Price are required.");
       return;
     }
     
@@ -105,7 +105,7 @@ const SmartAddModal: React.FC<SmartAddModalProps> = ({ isOpen, onClose, onAdd })
             <div className="space-y-4">
               <p className="text-slate-300 text-sm">
                 Describe your subscription naturally. For example: <br />
-                <span className="text-indigo-300 italic">"Netflix Premium for ₹649 monthly started last friday"</span>
+                <span className="text-indigo-300 italic">"Jio prepaid plan for ₹749 every 84 days started yesterday"</span>
               </p>
               
               <form onSubmit={handleSmartSubmit} className="space-y-4">
@@ -170,7 +170,7 @@ const SmartAddModal: React.FC<SmartAddModalProps> = ({ isOpen, onClose, onAdd })
                     step="0.01"
                     required
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
-                    value={formData.price || ''}
+                    value={formData.price === 0 ? '' : formData.price}
                     onChange={e => setFormData({...formData, price: e.target.valueAsNumber})}
                   />
                 </div>
@@ -193,6 +193,9 @@ const SmartAddModal: React.FC<SmartAddModalProps> = ({ isOpen, onClose, onAdd })
                   >
                     <option value="monthly">Monthly</option>
                     <option value="yearly">Yearly</option>
+                    <option value="quarterly">Quarterly</option>
+                    <option value="half-yearly">Half-Yearly</option>
+                    <option value="every-28-days">Every 28 Days</option>
                   </select>
                 </div>
               </div>

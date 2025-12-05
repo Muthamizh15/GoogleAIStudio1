@@ -12,39 +12,90 @@ const SubscriptionList: React.FC<SubscriptionListProps> = ({ subscriptions, onDe
   const getNextDueDate = (sub: Subscription): string => {
     const start = new Date(sub.startDate);
     const today = new Date();
+    // Normalize time to midnight to avoid time-of-day bugs
+    today.setHours(0, 0, 0, 0);
+    
     let next = new Date(start);
+    next.setHours(0, 0, 0, 0);
 
+    // If start date is in the future, that is the next date
+    if (next > today) {
+        return next.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+
+    // Otherwise, increment until we pass today
     while (next < today) {
-        if (sub.billingCycle === 'monthly') {
-            next.setMonth(next.getMonth() + 1);
-        } else {
-            next.setFullYear(next.getFullYear() + 1);
+        switch (sub.billingCycle) {
+            case 'monthly':
+                next.setMonth(next.getMonth() + 1);
+                break;
+            case 'yearly':
+                next.setFullYear(next.getFullYear() + 1);
+                break;
+            case 'quarterly':
+                next.setMonth(next.getMonth() + 3);
+                break;
+            case 'half-yearly':
+                next.setMonth(next.getMonth() + 6);
+                break;
+            case 'every-28-days':
+                next.setDate(next.getDate() + 28);
+                break;
+            default:
+                next.setMonth(next.getMonth() + 1);
         }
     }
     
-    // Check if it's due soon (within 7 days)
-    const diffTime = Math.abs(next.getTime() - today.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-    
     const dateStr = next.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    
     return dateStr;
   };
 
   const isDueSoon = (sub: Subscription): boolean => {
     const start = new Date(sub.startDate);
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     let next = new Date(start);
-    while (next < today) {
-        if (sub.billingCycle === 'monthly') {
-            next.setMonth(next.getMonth() + 1);
-        } else {
-            next.setFullYear(next.getFullYear() + 1);
+    next.setHours(0, 0, 0, 0);
+
+    if (next < today) {
+        while (next < today) {
+            switch (sub.billingCycle) {
+                case 'monthly':
+                    next.setMonth(next.getMonth() + 1);
+                    break;
+                case 'yearly':
+                    next.setFullYear(next.getFullYear() + 1);
+                    break;
+                case 'quarterly':
+                    next.setMonth(next.getMonth() + 3);
+                    break;
+                case 'half-yearly':
+                    next.setMonth(next.getMonth() + 6);
+                    break;
+                case 'every-28-days':
+                    next.setDate(next.getDate() + 28);
+                    break;
+                default:
+                    next.setMonth(next.getMonth() + 1);
+            }
         }
     }
+    
     const diffTime = next.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays <= 7 && diffDays >= 0;
+  };
+
+  const getCycleLabel = (cycle: string) => {
+    switch(cycle) {
+        case 'monthly': return '/mo';
+        case 'yearly': return '/yr';
+        case 'quarterly': return '/qtr';
+        case 'half-yearly': return '/6mo';
+        case 'every-28-days': return '/28d';
+        default: return '';
+    }
   };
 
   if (subscriptions.length === 0) {
@@ -78,7 +129,7 @@ const SubscriptionList: React.FC<SubscriptionListProps> = ({ subscriptions, onDe
                             {sub.currency === 'INR' ? '₹' : sub.currency === 'USD' ? '$' : sub.currency + ' '}
                             {sub.price.toFixed(2)}
                         </div>
-                        <div className="text-xs text-slate-400 font-medium">/{sub.billingCycle.slice(0, 2)}</div>
+                        <div className="text-xs text-slate-400 font-medium">{getCycleLabel(sub.billingCycle)}</div>
                     </div>
                 </div>
 
