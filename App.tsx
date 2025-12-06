@@ -12,8 +12,11 @@ import {
   Settings,
   Download,
   Upload,
-  RefreshCw,
-  AlertTriangle
+  Link as LinkIcon,
+  Copy,
+  CheckCircle,
+  AlertTriangle,
+  X
 } from 'lucide-react';
 import SmartAddModal from './components/SmartAddModal';
 import SubscriptionList from './components/SubscriptionList';
@@ -74,6 +77,25 @@ const generateId = () => {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
 };
 
+// Helper for Base64 Encoding with Unicode support
+const toBase64 = (str: string) => {
+  try {
+    return window.btoa(unescape(encodeURIComponent(str)));
+  } catch (e) {
+    console.error("Encoding failed", e);
+    return "";
+  }
+};
+
+const fromBase64 = (str: string) => {
+  try {
+    return decodeURIComponent(escape(window.atob(str)));
+  } catch (e) {
+    console.error("Decoding failed", e);
+    return "";
+  }
+};
+
 function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'analytics' | 'settings'>('dashboard');
   
@@ -105,7 +127,28 @@ function App() {
   const [adviceLoading, setAdviceLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   
+  const [syncLink, setSyncLink] = useState<string | null>(null);
+  const [copySuccess, setCopySuccess] = useState(false);
+  const [urlImportData, setUrlImportData] = useState<Subscription[] | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Check URL for sync data on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const dataParam = params.get('data');
+    if (dataParam) {
+      try {
+        const jsonStr = fromBase64(dataParam);
+        const parsed = JSON.parse(jsonStr);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+            setUrlImportData(parsed);
+        }
+      } catch (e) {
+        console.error("Failed to parse sync link data", e);
+      }
+    }
+  }, []);
 
   // Persist to local storage whenever subscriptions change
   useEffect(() => {
@@ -210,6 +253,45 @@ function App() {
     if (event.target) event.target.value = '';
   };
 
+  const handleGenerateSyncLink = () => {
+    const jsonStr = JSON.stringify(subscriptions);
+    const encoded = toBase64(jsonStr);
+    const url = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
+    
+    // Check approximate length limit (2000 chars is safe for most browsers, though modern ones support more)
+    if (url.length > 8000) {
+        alert("Your data is too large to share via a single link. Please use the 'Backup File' method instead.");
+        return;
+    }
+    
+    setSyncLink(url);
+    setCopySuccess(false);
+  };
+
+  const copyToClipboard = () => {
+    if (syncLink) {
+        navigator.clipboard.writeText(syncLink);
+        setCopySuccess(true);
+        setTimeout(() => setCopySuccess(false), 3000);
+    }
+  };
+
+  const confirmUrlImport = () => {
+      if (urlImportData) {
+          setSubscriptions(urlImportData);
+          setUrlImportData(null);
+          // Clear URL
+          window.history.replaceState({}, document.title, window.location.pathname);
+          alert("Data synced successfully!");
+      }
+  };
+
+  const cancelUrlImport = () => {
+      setUrlImportData(null);
+      // Clear URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+  };
+
   const handleResetData = () => {
       if (confirm("Are you sure? This will delete all local data and reset to defaults.")) {
           setSubscriptions(INITIAL_DATA);
@@ -256,6 +338,35 @@ function App() {
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex font-inter flex-col md:flex-row">
       
+      {/* Import Confirmation Modal */}
+      {urlImportData && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <div className="bg-slate-800 border border-slate-700 max-w-md w-full rounded-2xl p-6 shadow-2xl">
+                <div className="flex items-center gap-3 text-emerald-400 mb-4">
+                    <CheckCircle className="w-8 h-8" />
+                    <h3 className="text-xl font-bold text-white">Sync Data Found</h3>
+                </div>
+                <p className="text-slate-300 mb-6">
+                    We found subscription data in your link. Do you want to overwrite your current local data with these <strong>{urlImportData.length} entries</strong>?
+                </p>
+                <div className="flex gap-3">
+                    <button 
+                        onClick={cancelUrlImport}
+                        className="flex-1 py-3 bg-slate-700 hover:bg-slate-600 rounded-xl font-medium transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button 
+                        onClick={confirmUrlImport}
+                        className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-medium transition-colors shadow-lg shadow-emerald-900/20"
+                    >
+                        Yes, Sync Data
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+
       {/* Sidebar - Desktop */}
       <aside className="w-64 bg-slate-950 border-r border-slate-800 hidden md:flex flex-col fixed h-full z-10">
         <div className="p-6 border-b border-slate-800/50">
@@ -449,45 +560,100 @@ function App() {
 
             {/* Tab: Settings */}
             {activeTab === 'settings' && (
-                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
-                     <h2 className="text-2xl font-bold text-white mb-2">Data & Synchronization</h2>
-                     <p className="text-slate-400 max-w-2xl">
-                        Your data is stored locally on this device. To move your data to another device (e.g. from laptop to phone), 
-                        download a backup here and upload it on the other device.
-                     </p>
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
+                     <div className="space-y-2">
+                        <h2 className="text-2xl font-bold text-white">Data & Synchronization</h2>
+                        <p className="text-slate-400 max-w-2xl text-sm">
+                            This is a secure, private app. Your data lives on this device. 
+                            To view your data on another device, use the <strong>Sync via Link</strong> or <strong>Backup</strong> options below.
+                        </p>
+                     </div>
 
-                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+                     {/* Sync Via Link Section */}
+                     <div className="bg-indigo-900/10 border border-indigo-500/20 p-6 rounded-2xl">
+                         <div className="flex items-start gap-4">
+                             <div className="w-12 h-12 bg-indigo-500/20 rounded-full flex items-center justify-center text-indigo-400 shrink-0">
+                                 <LinkIcon className="w-6 h-6" />
+                             </div>
+                             <div className="space-y-4 w-full">
+                                 <div>
+                                     <h3 className="text-lg font-semibold text-white">Sync via Link (Easiest)</h3>
+                                     <p className="text-sm text-slate-400 mt-1">
+                                         Create a magic link containing all your data. Send it to your other device (email/WhatsApp) and open it to instantly sync.
+                                     </p>
+                                 </div>
+                                 
+                                 {!syncLink ? (
+                                    <button 
+                                        onClick={handleGenerateSyncLink}
+                                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium text-sm transition-colors shadow-lg shadow-indigo-900/20"
+                                    >
+                                        Generate Sync Link
+                                    </button>
+                                 ) : (
+                                    <div className="space-y-3">
+                                        <div className="flex gap-2">
+                                            <input 
+                                                readOnly 
+                                                value={syncLink} 
+                                                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-400 text-xs font-mono truncate"
+                                            />
+                                            <button 
+                                                onClick={copyToClipboard}
+                                                className="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-white transition-colors"
+                                                title="Copy to clipboard"
+                                            >
+                                                {copySuccess ? <CheckCircle className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                                            </button>
+                                            <button 
+                                                onClick={() => setSyncLink(null)}
+                                                className="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                        <p className="text-xs text-indigo-300">
+                                            Link generated! Copy and open this URL on your other device.
+                                        </p>
+                                    </div>
+                                 )}
+                             </div>
+                         </div>
+                     </div>
+
+                     <h3 className="text-lg font-semibold text-white pt-4">Manual Backup</h3>
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         {/* Export */}
                         <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 flex flex-col items-center text-center space-y-4 hover:border-indigo-500/50 transition-colors">
-                            <div className="w-16 h-16 bg-indigo-500/10 rounded-full flex items-center justify-center text-indigo-400">
-                                <Download className="w-8 h-8" />
+                            <div className="w-12 h-12 bg-slate-700/50 rounded-full flex items-center justify-center text-slate-400">
+                                <Download className="w-6 h-6" />
                             </div>
                             <div>
-                                <h3 className="text-lg font-semibold text-white">Backup Data</h3>
-                                <p className="text-sm text-slate-500 mt-1">Download your data as a JSON file.</p>
+                                <h3 className="text-base font-medium text-white">Download File</h3>
+                                <p className="text-xs text-slate-500 mt-1">Save JSON file to device.</p>
                             </div>
                             <button 
                                 onClick={handleExportData}
-                                className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium transition-colors"
+                                className="w-full py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-colors"
                             >
-                                Download Backup
+                                Download
                             </button>
                         </div>
 
                         {/* Import */}
                         <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 flex flex-col items-center text-center space-y-4 hover:border-emerald-500/50 transition-colors">
-                            <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center text-emerald-400">
-                                <Upload className="w-8 h-8" />
+                            <div className="w-12 h-12 bg-slate-700/50 rounded-full flex items-center justify-center text-slate-400">
+                                <Upload className="w-6 h-6" />
                             </div>
                             <div>
-                                <h3 className="text-lg font-semibold text-white">Restore Data</h3>
-                                <p className="text-sm text-slate-500 mt-1">Upload a backup file to restore entries.</p>
+                                <h3 className="text-base font-medium text-white">Upload File</h3>
+                                <p className="text-xs text-slate-500 mt-1">Restore from JSON file.</p>
                             </div>
                             <button 
                                 onClick={handleImportTrigger}
-                                className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors"
+                                className="w-full py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-colors"
                             >
-                                Upload Backup
+                                Select File
                             </button>
                             <input 
                                 type="file" 
@@ -500,18 +666,18 @@ function App() {
 
                         {/* Reset */}
                         <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 flex flex-col items-center text-center space-y-4 hover:border-red-500/50 transition-colors">
-                            <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center text-red-400">
-                                <AlertTriangle className="w-8 h-8" />
+                            <div className="w-12 h-12 bg-slate-700/50 rounded-full flex items-center justify-center text-slate-400">
+                                <AlertTriangle className="w-6 h-6" />
                             </div>
                             <div>
-                                <h3 className="text-lg font-semibold text-white">Reset App</h3>
-                                <p className="text-sm text-slate-500 mt-1">Clear all data and start fresh.</p>
+                                <h3 className="text-base font-medium text-white">Factory Reset</h3>
+                                <p className="text-xs text-slate-500 mt-1">Clear all local data.</p>
                             </div>
                             <button 
                                 onClick={handleResetData}
-                                className="w-full py-2 bg-red-600/20 hover:bg-red-600 hover:text-white text-red-400 border border-red-600/30 rounded-lg font-medium transition-all"
+                                className="w-full py-2 bg-red-900/20 hover:bg-red-900/40 text-red-400 border border-red-900/30 rounded-lg text-sm font-medium transition-all"
                             >
-                                Clear Data
+                                Reset App
                             </button>
                         </div>
                      </div>
