@@ -16,7 +16,8 @@ import {
   Copy,
   CheckCircle,
   AlertTriangle,
-  X
+  X,
+  Save
 } from 'lucide-react';
 import SmartAddModal from './components/SmartAddModal';
 import SubscriptionList from './components/SubscriptionList';
@@ -130,6 +131,8 @@ function App() {
   const [syncLink, setSyncLink] = useState<string | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
   const [urlImportData, setUrlImportData] = useState<Subscription[] | null>(null);
+  
+  const [showSaveToast, setShowSaveToast] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -158,6 +161,17 @@ function App() {
       console.error('Failed to save subscriptions:', error);
     }
   }, [subscriptions]);
+
+  const handleManualSave = () => {
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(subscriptions));
+        setShowSaveToast(true);
+        setTimeout(() => setShowSaveToast(false), 3000);
+    } catch (error) {
+        console.error('Manual save failed', error);
+        alert("Failed to save. Check device storage.");
+    }
+  };
 
   const handleAddSubscription = (subData: Omit<Subscription, 'id'>) => {
     const newSub: Subscription = {
@@ -431,11 +445,17 @@ function App() {
           </div>
 
           <div className="flex items-center gap-3 ml-auto">
-            {/* Mobile Search Icon Trigger (Simplified for now) */}
-            <div className="md:hidden">
-                {/* Could add a search toggle here */}
-            </div>
             
+            {/* Save Button */}
+            <button 
+                onClick={handleManualSave}
+                className="bg-slate-800 hover:bg-slate-700 text-slate-200 p-2 md:px-5 md:py-2.5 rounded-full font-medium border border-slate-700 flex items-center gap-2 transition-all mr-2 active:scale-95"
+                title="Save changes to this device"
+            >
+                <Save className="w-5 h-5" />
+                <span className="hidden sm:inline">Save</span>
+            </button>
+
             <button 
                 onClick={() => setIsModalOpen(true)}
                 className="bg-indigo-600 hover:bg-indigo-500 text-white p-2 md:px-5 md:py-2.5 rounded-full font-medium shadow-lg shadow-indigo-500/20 flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
@@ -686,6 +706,14 @@ function App() {
 
         </div>
       </main>
+
+      {/* Save Notification Toast */}
+      {showSaveToast && (
+        <div className="fixed bottom-20 md:bottom-8 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 z-50 animate-in fade-in slide-in-from-bottom-4">
+            <CheckCircle className="w-5 h-5" />
+            <span className="font-medium">Changes saved to device</span>
+        </div>
+      )}
 
       {/* Mobile Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 z-30 md:hidden pb-safe">
